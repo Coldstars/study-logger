@@ -16,15 +16,15 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet: any[]) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
+        setAll(cookiesToSet: { name: string; value: string; options: any }[]) {
+          cookiesToSet.forEach((cookie) =>
+            request.cookies.set(cookie.name, cookie.value)
           );
           response = NextResponse.next({
             request,
           });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+          cookiesToSet.forEach((cookie) =>
+            response.cookies.set(cookie.name, cookie.value, cookie.options)
           );
         },
       },
