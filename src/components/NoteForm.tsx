@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { addNote } from "@/app/actions";
-import { ImageIcon, Send, X } from "lucide-react";
+import { addNote, createNoteFromUrl } from "@/app/actions";
+import { ImageIcon, Send, X, Link as LinkIcon, Edit3, Loader2 } from "lucide-react";
 
 export default function NoteForm() {
+  const [mode, setMode] = useState<"text" | "url">("text");
   const [content, setContent] = useState("");
+  const [url, setUrl] = useState("");
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,79 +29,129 @@ export default function NoteForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
-
     setLoading(true);
-    const formData = new FormData();
-    formData.append("content", content);
-    if (image) formData.append("image", image);
 
     try {
-      await addNote(formData);
-      setContent("");
-      removeImage();
-    } catch (error) {
+      if (mode === "url") {
+        if (!url.trim()) return;
+        await createNoteFromUrl(url);
+        setUrl("");
+        setMode("text");
+      } else {
+        if (!content.trim()) return;
+        const formData = new FormData();
+        formData.append("content", content);
+        if (image) formData.append("image", image);
+        await addNote(formData);
+        setContent("");
+        removeImage();
+      }
+    } catch (error: any) {
       console.error("Failed to add note:", error);
-      alert("发布失败，请检查网络或配置。");
+      alert(error.message || "发布失败，请检查网络或配置。");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-8 sticky top-4 z-10 transition-all focus-within:shadow-md">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="今天学到了什么..."
-          className="w-full min-h-[80px] p-2 border-none focus:ring-0 outline-none text-gray-800 text-lg resize-none"
-          disabled={loading}
-        />
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-10 sticky top-4 z-20 transition-all focus-within:shadow-md max-w-3xl mx-auto w-full group">
+      <div className="flex gap-4 mb-4 p-1 bg-gray-50 rounded-xl w-fit">
+        <button
+          onClick={() => setMode("text")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+            mode === "text" ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
+          }`}
+        >
+          <Edit3 className="w-4 h-4" />
+          文字记录
+        </button>
+        <button
+          onClick={() => setMode("url")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+            mode === "url" ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"
+          }`}
+        >
+          <LinkIcon className="w-4 h-4" />
+          网页抓取
+        </button>
+      </div>
 
-        {preview && (
-          <div className="relative inline-block group">
-            <img src={preview} alt="Preview" className="w-24 h-24 object-cover rounded-lg border border-gray-100" />
-            <button
-              type="button"
-              onClick={removeImage}
-              className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-sm opacity-0 group-hover:opacity-100"
-            >
-              <X className="w-3 h-3" />
-            </button>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {mode === "text" ? (
+          <>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="今天学到了什么..."
+              className="w-full min-h-[120px] p-2 border-none focus:ring-0 outline-none text-gray-800 text-lg md:text-xl resize-none font-light"
+              disabled={loading}
+            />
+
+            {preview && (
+              <div className="relative inline-block group/img">
+                <img src={preview} alt="Preview" className="w-32 h-32 object-cover rounded-2xl border border-gray-100 shadow-sm" />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute -top-3 -right-3 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-lg opacity-0 group-hover/img:opacity-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="py-4">
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="粘贴网页链接 (如: 微信文章、知乎、博客...)"
+              className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-lg transition-all"
+              disabled={loading}
+              required
+            />
+            <p className="mt-3 text-sm text-gray-400 px-1">
+              AI 将自动提取内容、提取图片并进行改写整理。
+            </p>
           </div>
         )}
 
-        <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+        <div className="flex items-center justify-between pt-4 border-t border-gray-50">
           <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition"
-              title="上传图片"
-            >
-              <ImageIcon className="w-5 h-5" />
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageChange}
-              accept="image/*"
-              className="hidden"
-            />
+            {mode === "text" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-3 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition"
+                  title="上传图片"
+                >
+                  <ImageIcon className="w-6 h-6" />
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+              </>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={loading || !content.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-400 transition flex items-center gap-2 font-medium"
+            disabled={loading || (mode === "text" ? !content.trim() : !url.trim())}
+            className="px-8 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-400 transition-all flex items-center gap-2 font-semibold shadow-lg shadow-blue-500/20 active:scale-95"
           >
             {loading ? (
-              <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             )}
-            记录
+            {mode === "url" ? "开始抓取" : "发布记录"}
           </button>
         </div>
       </form>

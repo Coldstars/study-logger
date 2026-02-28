@@ -45,7 +45,7 @@ export default function Timeline({ notes }: { notes: Note[] }) {
           没有找到包含该标签的记录
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredNotes.map((note) => (
             <NoteCard key={note.id} note={note} onTagClick={setFilterTag} />
           ))}
